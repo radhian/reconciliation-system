@@ -1,0 +1,32 @@
+version: '3'
+services:
+  app:
+    container_name: reconciliation_system_app
+    build: .
+    command: go run main.go
+    ports: 
+      - 8080:8080
+    restart: on-failure
+    env_file:
+      - .env 
+    volumes:
+      - .:/reconciliation_system
+    depends_on:
+      - db
+       
+  db:
+    image: postgres
+    container_name: reconciliation_system_db
+    environment:
+      - POSTGRES_USER=${DB_USER} 
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - '5432:5432'
+    volumes:
+      - database_postgres:/var/lib/postgresql/data
+
+volumes:
+  database_postgres:
+
+
