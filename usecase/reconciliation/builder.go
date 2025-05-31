@@ -7,7 +7,7 @@ import (
 )
 
 type ReconciliationUsecase interface {
-	ProcessReconciliation(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error)
+	ProcessReconciliationInit(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error)
 	GetReconciliationResults() ([]model.ReconciliationProcessLog, error)
 }
 

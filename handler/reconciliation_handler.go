@@ -30,7 +30,7 @@ func (h *ReconciliationHandler) ProcessReconciliation(w http.ResponseWriter, r *
 		return
 	}
 
-	log, err := h.Usecase.ProcessReconciliation(req.TransactionCSVPath, req.ReferenceCSVPaths, req.StartTime, req.EndTime, req.Operator)
+	log, err := h.Usecase.ProcessReconciliationInit(req.TransactionCSVPath, req.ReferenceCSVPaths, req.StartTime, req.EndTime, req.Operator)
 	if err != nil {
 		http.Error(w, "Failed to process reconciliation", http.StatusInternalServerError)
 		return

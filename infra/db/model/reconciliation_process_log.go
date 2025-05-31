@@ -5,6 +5,7 @@ type ReconciliationProcessLog struct {
 	ReconciliationType int64  `gorm:"not null" json:"reconciliation_type"`
 	TotalMainRow       int64  `gorm:"not null" json:"total_main_row"`
 	CurrentMainRow     int64  `gorm:"not null" json:"current_main_row"`
+	ProcessInfo        string `gorm:"type:text;not null" json:"process_info"`
 	Status             int    `gorm:"not null" json:"status"`
 	Result             string `gorm:"type:text;not null" json:"result"`
 	CreateTime         int64  `gorm:"not null" json:"create_time"`
