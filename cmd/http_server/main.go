@@ -1,4 +1,4 @@
-package controllers
+package main
 
 import (
 	"fmt"
@@ -42,6 +42,11 @@ func (a *App) Initialize(DbHost, DbPort, DbUser, DbName, DbPassword string) {
 	a.initializeRoutes()
 }
 
+func RegisterReconciliationRoutes(router *mux.Router, h *handler.ReconciliationHandler) {
+	router.HandleFunc("/process_reconciliation", h.ProcessReconciliation).Methods("POST")
+	router.HandleFunc("/get_result", h.GetResult).Methods("GET")
+}
+
 func (a *App) initializeRoutes() {
 	a.Router.Use(middlewares.SetContentTypeMiddleware)
 	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB)
@@ -58,4 +63,16 @@ func (a *App) RunServer() {
 
 	log.Printf("\nServer starting on port %v", port)
 	log.Fatal(http.ListenAndServe(":"+port, a.Router))
+}
+
+func main() {
+	app := App{}
+	app.Initialize(
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PASSWORD"))
+
+	app.RunServer()
 }
