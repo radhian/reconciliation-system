@@ -1,7 +1,7 @@
 package reconciliation
 
 import (
-	"github.com/radhian/reconciliation_system/infra/db/model"
+	"github.com/radhian/reconciliation-system/infra/db/model"
 
 	"github.com/jinzhu/gorm"
 )
@@ -17,12 +17,4 @@ type reconciliationUsecase struct {
 
 func NewReconciliationUsecase(db *gorm.DB) ReconciliationUsecase {
 	return &reconciliationUsecase{db: db}
-}
-
-func (u *reconciliationUsecase) GetReconciliationResults() ([]model.ReconciliationProcessLog, error) {
-	var logs []model.ReconciliationProcessLog
-	if err := u.db.Find(&logs).Error; err != nil {
-		return nil, err
-	}
-	return logs, nil
 }

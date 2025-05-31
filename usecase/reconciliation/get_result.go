@@ -1,6 +1,6 @@
 package reconciliation
 
-import "github.com/radhian/reconciliation_system/infra/db/model"
+import "github.com/radhian/reconciliation-system/infra/db/model"
 
 func (u *reconciliationUsecase) GetReconciliationResults() ([]model.ReconciliationProcessLog, error) {
 	var logs []model.ReconciliationProcessLog

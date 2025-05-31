@@ -1,6 +1,6 @@
 package reconciliation
 
-import "github.com/radhian/reconciliation_system/infra/db/model"
+import "github.com/radhian/reconciliation-system/infra/db/model"
 
 func (u *reconciliationUsecase) ProcessReconciliation(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error) {
 	log := model.ReconciliationProcessLog{

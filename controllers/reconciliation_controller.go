@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"github.com/radhian/reconciliation_system/handler"
+	"github.com/radhian/reconciliation-system/handler"
 
 	"github.com/gorilla/mux"
 )

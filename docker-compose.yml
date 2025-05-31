@@ -1,7 +1,7 @@
 version: '3'
 services:
   app:
-    container_name: reconciliation_system_app
+    container_name: reconciliation-system_app
     build: .
     command: go run main.go
     ports: 
@@ -10,13 +10,13 @@ services:
     env_file:
       - .env 
     volumes:
-      - .:/reconciliation_system
+      - .:/reconciliation-system
     depends_on:
       - db
        
   db:
     image: postgres
-    container_name: reconciliation_system_db
+    container_name: reconciliation-system_db
     environment:
       - POSTGRES_USER=${DB_USER} 
       - POSTGRES_PASSWORD=${DB_PASSWORD}

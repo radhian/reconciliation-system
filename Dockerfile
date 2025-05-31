@@ -1,6 +1,6 @@
 FROM golang:alpine
 
-WORKDIR /reconciliation_system
+WORKDIR /reconciliation-system
 
 COPY go.mod go.sum ./
 
