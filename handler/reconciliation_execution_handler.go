@@ -2,7 +2,7 @@ package handler
 
 import (
 	"context"
-	"log"
+	"errors"
 )
 
 func (h *ReconciliationHandler) ReconciliationExecution(ctx context.Context) error {
@@ -12,8 +12,7 @@ func (h *ReconciliationHandler) ReconciliationExecution(ctx context.Context) err
 	}
 
 	if !acquired {
-		log.Printf("[INFO] All process is busy")
-		return nil
+		return errors.New("no process handled")
 	}
 
 	defer h.Usecase.UnlockProcess(ctx, logID)

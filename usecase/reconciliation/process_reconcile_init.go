@@ -48,7 +48,7 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 		TotalMainRow:       0, // will be updated after processing CSV
 		CurrentMainRow:     0,
 		ProcessInfo:        string(processInfoJSON),
-		Status:             0, // status = 0 (pending, or whatever enum you use)
+		Status:             1, // init = 1, running = 2, finish = 3, cancel = 4
 		Result:             "",
 		CreateTime:         timeNowUnix,
 		CreateBy:           operator,
