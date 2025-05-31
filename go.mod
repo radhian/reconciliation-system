@@ -1,4 +1,4 @@
-module github.com/Lgdev07/reconciliation_system
+module github.com/radhian/reconciliation_system
 
 go 1.14
 

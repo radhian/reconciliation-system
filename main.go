@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/Lgdev07/reconciliation_system/controllers"
+	"github.com/radhian/reconciliation_system/controllers"
 )
 
 func main() {
