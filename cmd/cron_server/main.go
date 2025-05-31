@@ -11,6 +11,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgres
 	"github.com/radhian/reconciliation-system/handler"
+	"github.com/radhian/reconciliation-system/infra/locker"
 	reconciliationUsecase "github.com/radhian/reconciliation-system/usecase/reconciliation"
 )
 
@@ -25,29 +26,27 @@ func (cfg CronWorkerConfig) startReconcileExecutorWorker(h *handler.Reconciliati
 		err := h.ReconciliationExecution(ctx)
 		if err != nil {
 			log.Printf("[Worker %d] error: %s", workerID, err.Error())
-			time.Sleep(cfg.Interval)
-			continue
+		} else {
+			log.Printf("[Worker %d] success", workerID)
 		}
-
-		log.Printf("[Worker %d] success", workerID)
 
 		time.Sleep(cfg.Interval)
 	}
 }
 
 type App struct {
-	DB *gorm.DB
+	DB     *gorm.DB
+	Locker *locker.Locker
 }
 
 func (a *App) startCronWorker(cfg CronWorkerConfig) {
 	var wg sync.WaitGroup
 
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB, a.Locker)
 	h := handler.NewReconciliationHandler(reconciliationUc)
 
 	for i := 0; i < cfg.Workers; i++ {
 		wg.Add(1)
-		log.Printf("startWorker%d", i)
 		go func(workerID int) {
 			log.Printf("spawn [Worker %d]", workerID)
 			cfg.startReconcileExecutorWorker(h, workerID)
@@ -68,12 +67,14 @@ func (a *App) Initialize(DbHost, DbPort, DbUser, DbName, DbPassword string) {
 	} else {
 		fmt.Printf("We are connected to the database %s", DbName)
 	}
+
+	a.Locker = locker.New()
 }
 
 func (a *App) RunServer() {
 	a.startCronWorker(CronWorkerConfig{
-		Workers:  2,
-		Interval: 1 * time.Second,
+		Workers:  1,
+		Interval: 2 * time.Second,
 	})
 }
 

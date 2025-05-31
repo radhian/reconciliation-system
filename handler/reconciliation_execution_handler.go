@@ -2,20 +2,23 @@ package handler
 
 import (
 	"context"
+	"log"
 )
 
 func (h *ReconciliationHandler) ReconciliationExecution(ctx context.Context) error {
-	acquired, err := h.Usecase.TryAcquireLock(ctx)
+	acquired, logID, err := h.Usecase.TryAcquireLock(ctx)
 	if err != nil {
 		return err
 	}
 
 	if !acquired {
-		//TODO: add log, system is busy
+		log.Printf("[INFO] All process is busy")
 		return nil
 	}
 
-	err = h.Usecase.ProcessReconciliationJob(ctx)
+	defer h.Usecase.UnlockProcess(ctx, logID)
+
+	err = h.Usecase.ProcessReconciliationJob(ctx, logID)
 	if err != nil {
 		return err
 	}

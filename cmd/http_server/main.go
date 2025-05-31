@@ -49,7 +49,7 @@ func RegisterReconciliationRoutes(router *mux.Router, h *handler.ReconciliationH
 
 func (a *App) initializeRoutes() {
 	a.Router.Use(middlewares.SetContentTypeMiddleware)
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB, nil)
 	handler := handler.NewReconciliationHandler(reconciliationUc)
 	RegisterReconciliationRoutes(a.Router, handler)
 }
