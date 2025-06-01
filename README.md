@@ -11,10 +11,9 @@ A **highly scalable system** designed to automate the **matching and validation 
 * [3. System Architecture](#3-system-architecture)
 * [4. Database Models](#4-database-models)
 * [5. Key Features](#5-key-features)
-* [6. Environment Variables](#6-environment-variables)
-* [7. Prerequisites](#7-prerequisites)
-* [8. How to Run & Test](#8-how-to-run--test)
-* [9. Makefile Commands](#9-makefile-commands)
+* [6. Prerequisites](#6-prerequisites)
+* [7. How to Run & Test](#7-how-to-run--test)
+* [8. Makefile Commands](#8-makefile-commands)
 
 ---
 
@@ -34,7 +33,7 @@ The platform is composed of:
 
 ---
 
-## 2. 📌 Assumptions
+## 2. Assumptions
 
 * All data comes in **CSV** format.
 * **Timestamps** are in **RFC3339 (UTC / Z)** format.
@@ -150,7 +149,7 @@ Each reconciliation job can have multiple assets (CSV files).
 
 ---
 
-## 5. ⭐ Key Features
+## 5. Key Features
 
 * Bulk reconciliation with progress tracking
 * Configurable concurrency and interval
@@ -162,7 +161,7 @@ Each reconciliation job can have multiple assets (CSV files).
 
 ---
 
-## 6. 🛠️ Prerequisites
+## 6. Prerequisites
 
 Ensure the following are installed:
 
@@ -175,7 +174,7 @@ Ensure the following are installed:
 
 ---
 
-## 7. 🚀 How to Run & Test
+## 7. How to Run & Test
 
 ### 1. Start the stack
 
