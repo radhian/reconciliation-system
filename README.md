@@ -36,12 +36,64 @@ The platform is composed of:
 
 ## 2. Assumptions
 
+### General
 * All data comes in **CSV** format.
 * **Timestamps** are in **RFC3339 (UTC / Z)** format.
 * **Amounts** can be negative (to represent debits).
 * Inputs are valid local paths to the CSV files.
 * Configurable runtime via **environment variables**.
-* Matching logic uses **transaction ID**, **amount**, and **timestamp range**.
+
+### Matching Logic
+
+The reconciliation service matches transactions between the internal system and bank statements using a combination of **transaction type**, **amount**, and **count of transactions within each grouped key(TransactionType-Amount)**.
+
+#### Key Concepts:
+
+- **Transaction Type Mapping:**
+  - Internal transactions use `"CREDIT"` or `"DEBIT"` mapped to single-letter codes:  
+    - `"CREDIT"` → `"c"`  
+    - `"DEBIT"` → `"d"`  
+    - Unknown types default to `"u"`
+  - Bank statement amounts are signed:
+    - Negative amounts → `"d"` (debit)  
+    - Positive amounts → `"c"` (credit)
+
+- **Grouping by Key:**  
+  Each transaction or bank entry is grouped by a **key** formatted as:
+{typeCode}|{absolute_amount}
+
+For example, a credit transaction of 100.00 is grouped as `"c|100.00"`.
+
+- **Count-Based Matching:**  
+Within each group key, transactions from both sides are matched based on the minimum count between internal transactions and bank statements.
+- If the internal system has 5 transactions in group `"c|100.00"` and the bank has 3 entries in the same group, only 3 are matched.
+- The leftover 2 internal transactions are considered unmatched.
+- Likewise, any leftover bank entries after matching are also marked unmatched.
+
+#### Example
+
+| Transaction ID | Amount | Type   | Group Key  |
+|----------------|--------|--------|------------|
+| T001           | 100.00 | CREDIT | c|100.00   |
+| T002           | 100.00 | CREDIT | c|100.00   |
+| T003           | 200.50 | DEBIT  | d|200.50   |
+
+| Bank Statement ID | Amount  | Group Key  |
+|-------------------|---------|------------|
+| B001              | 100.00  | c|100.00   |
+| B002              | -200.50 | d|200.50   |
+| B003              | 100.00  | c|100.00   |
+| B004              | -300.00 | d|300.00   |
+
+- **Matched:**  
+- T001 ↔ B001 (c|100.00)  
+- T002 ↔ B003 (c|100.00)  
+- T003 ↔ B002 (d|200.50)
+
+- **Unmatched:**  
+- Bank: B004 (d|300.00)  
+- System: None
+
 
 ---
 
