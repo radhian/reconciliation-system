@@ -221,9 +221,9 @@ Ensure the following are installed:
 * **Docker** (v20.10+)
 * **Docker Compose** (v1.29+)
 * **Go** (v1.14+) *(optional: for manual builds)*
-* **PostgreSQL** (or run via Docker)
+* **PostgreSQL** (run via Docker)
 
-> Use a `.env` file to store environment variables.
+> Please check a `.env` file to store environment variables.
 
 ---
 
@@ -237,6 +237,26 @@ make run
 
 ### 2. Trigger reconciliation (sample)
 
+#### Sample CSV Data - exist in current repo `/data`
+
+##### Bank Statement CSV (`bank_statements.csv`)
+
+```csv
+unique_identifier,amount,date
+BRX001,10000,2024-06-01
+BRX002,-20000,2024-06-01
+BRX004,5000,2024-06-01
+```
+
+##### Transactions CSV (`transactions.csv`)
+```csv
+trxID,amount,type,transactionTime
+TRX001,10000,CREDIT,2024-06-01T08:00:00Z
+TRX002,20000,DEBIT,2024-06-01T08:15:00Z
+TRX003,15000,CREDIT,2024-06-01T08:30:00Z
+```
+
+#### CLI Request
 ```bash
 curl -X POST http://localhost:8080/process_reconciliation \
   -H "Content-Type: application/json" \
@@ -249,13 +269,55 @@ curl -X POST http://localhost:8080/process_reconciliation \
       }'
 ```
 
+#### Expected Response
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 810,
+    "reconciliation_type": 1,
+    "total_main_row": 0,
+    "current_main_row": 0,
+    "process_info": "{\"start_time\":1717200000,\"end_time\":1717286399}",
+    "status": 1,
+    "result": "",
+    "create_time": 1748798512,
+    "create_by": "radhian",
+    "update_time": 1748798512,
+    "update_by": "radhian"
+  }
+}
+```
+
 ### 3. Get reconciliation result
 
+##### CLI Request
 ```bash
 curl "http://localhost:8080/get_result?log_id=810"
 ```
 
-### Result (formatted)
+#### Expected Response
+
+```json
+{
+  "status": "success",
+  "data": {
+    "id": 810,
+    "reconciliation_type": 1,
+    "total_main_row": 3,
+    "current_main_row": 3,
+    "process_info": "{\"start_time\":1717200000,\"end_time\":1717286399}",
+    "status": 3,
+    "result": "{\"total_processed\":3,\"matched\":2,\"unmatched\":1,\"system_unmatched\":[{\"TrxID\":\"TRX003\",\"Amount\":15000,\"Type\":\"CREDIT\",\"TransactionTime\":\"2024-06-01T08:30:00Z\"}],\"bank_unmatched_by_source\":{\"1748798512066907802_bank_statement.csv\":[{\"UniqueIdentifier\":\"BRX004\",\"Amount\":5000,\"Date\":\"2024-06-01T00:00:00Z\"}]},\"total_discrepancy\":20000}",
+    "create_time": 1748798512,
+    "create_by": "radhian",
+    "update_time": 1748798512,
+    "update_by": "system"
+  }
+}
+```
+
+#### Result
 
 ```json
 {
@@ -283,7 +345,7 @@ curl "http://localhost:8080/get_result?log_id=810"
 }
 ```
 
-### 4. Try large CSVs
+### 4. [Extra] Try large CSVs
 
 ```bash
 curl -X POST http://localhost:8080/process_reconciliation \
@@ -328,3 +390,9 @@ Application settings (e.g., database config, batch size, worker count) are loade
 
 * ⚠️ Any configuration change requires a full application restart to take effect.
 Future Improvement: Implement dynamic or hot-reloadable configuration using tools like Viper, Consul, or environment watchers.
+
+#### 3. In-Memory Cache Without External Visibility
+The current locking mechanism is implemented using in-memory cache, which lacks external observability.
+
+* ⚠️ There is no visibility for debugging or monitoring the lock state across processes or nodes.
+Future Improvement: Replace in-memory cache with a distributed cache like Redis to enable robust locking, visibility, and fault tolerance.
