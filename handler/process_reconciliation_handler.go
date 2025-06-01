@@ -22,13 +22,14 @@ func (h *ReconciliationHandler) ProcessReconciliation(w http.ResponseWriter, r *
 		return
 	}
 
-	log, err := h.Usecase.ProcessReconciliationInit(req.TransactionCSVPath, req.ReferenceCSVPaths, req.StartTime, req.EndTime, req.Operator)
+	res, err := h.Usecase.ProcessReconciliationInit(req.TransactionCSVPath, req.ReferenceCSVPaths, req.StartTime, req.EndTime, req.Operator)
 	if err != nil {
+		log.Printf("failed to load CSV: %v", err)
 		http.Error(w, "Failed to process reconciliation", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(log)
+	json.NewEncoder(w).Encode(res)
 }
 
 func validateProcessReconciliationRequest(req ProcessReconciliationRequest) error {

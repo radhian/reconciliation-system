@@ -56,12 +56,12 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 		UpdateBy:           operator,
 	}
 
-	if err := u.dao.CreateReconciliationProcessLog(*log); err != nil {
+	if err := u.dao.CreateReconciliationProcessLog(log); err != nil {
 		return nil, fmt.Errorf("failed to create reconciliation process log: %v", err)
 	}
 
 	for _, url := range append([]string{mainFileURL}, refFileURLs...) {
-		asset := model.ReconciliationProcessLogAsset{
+		asset := &model.ReconciliationProcessLogAsset{
 			ReconciliationProcessLogID: log.ID,
 			FileName:                   filepath.Base(url),
 			FileUrl:                    url,
@@ -85,7 +85,14 @@ func (u *reconciliationUsecase) uploadFile(filePath string) (string, error) {
 	}
 
 	fileName := filepath.Base(filePath)
-	destPath := filepath.Join("uploads", fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileName))
+
+	uploadsDir := "uploads"
+
+	if err := os.MkdirAll(uploadsDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create uploads directory: %w", err)
+	}
+
+	destPath := filepath.Join(uploadsDir, fmt.Sprintf("%d_%s", time.Now().UnixNano(), fileName))
 
 	if err := os.WriteFile(destPath, input, 0644); err != nil {
 		return "", err

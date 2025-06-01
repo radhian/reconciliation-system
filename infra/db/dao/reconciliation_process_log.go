@@ -27,8 +27,8 @@ func (d *dao) GetReconciliationProcessLogByStatusList(statusList []int) ([]model
 	return processLogList, nil
 }
 
-func (d *dao) CreateReconciliationProcessLog(payload model.ReconciliationProcessLog) error {
-	if err := d.db.Create(&payload).Error; err != nil {
+func (d *dao) CreateReconciliationProcessLog(payload *model.ReconciliationProcessLog) error {
+	if err := d.db.Create(payload).Error; err != nil {
 		return fmt.Errorf("failed to save file asset: %v", err)
 	}
 	return nil
