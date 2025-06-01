@@ -176,7 +176,7 @@ Each reconciliation job can have multiple assets (CSV files).
 | CreateTime                 | int64  | UNIX timestamp                      |
 | CreateBy                   | string | Uploader identity                   |
 
-#### `ProcessInfo` JSON Format
+#### The `ProcessInfo` JSON Format
 
 ```json
 {
@@ -185,7 +185,7 @@ Each reconciliation job can have multiple assets (CSV files).
 }
 ```
 
-#### `Result` JSON Format
+#### The `Result` JSON Format
 
 ```json
 {
@@ -291,9 +291,9 @@ curl -X POST http://localhost:8080/process_reconciliation \
 
 ### 3. Get reconciliation result
 
-##### CLI Request
+#### CLI Request
 ```bash
-curl "http://localhost:8080/get_result?log_id=810"
+curl http://localhost:8080/get_result\?log_id=810
 ```
 
 #### Expected Response
