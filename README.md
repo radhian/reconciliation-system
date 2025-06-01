@@ -47,6 +47,25 @@ The platform is composed of:
 
 ## 3. System Architecture
 
+### System Flow Diagram
+![reconcile_app drawio (1)](https://github.com/user-attachments/assets/dc4c5305-8530-4a26-9d50-710e5c288335)
+
+#### Process Reconciliation (HTTP)
+1. Receive and validate the reconciliation request payload.
+2. Upload the CSV files (transaction and reference data).
+3. If validation and upload are successful, create a new reconciliation process log and associated asset records in the database.
+  
+#### Get Result (HTTP)
+1. Get the reconciliation result using the provided log_id.
+2. Retrieve the corresponding process log from the database and return the result, including status and summary if available.
+  
+#### Reconcile execution (CRON)
+1. Periodically checks for pending reconciliation processes with status INIT or RUNNING.
+2. Uses an in-memory cache or distributed lock to ensure the process isn't already being executed by another worker.
+3. If the process is not locked, it executes the reconciliation logic using the associated CSV file links.
+4. After processing, updates the process log with the results and sets the final status (e.g., RUNNING, FINISH).
+
+
 ### HTTP Server
 
 | Endpoint                       | Description                             |
@@ -143,23 +162,7 @@ Each reconciliation job can have multiple assets (CSV files).
 
 ---
 
-## 6. Environment Variables
-
-| Variable           | Description                        | Example          |
-| ------------------ | ---------------------------------- | ---------------- |
-| `DB_HOST`          | PostgreSQL hostname                | `localhost`      |
-| `DB_PORT`          | PostgreSQL port                    | `5432`           |
-| `DB_USER`          | Database user                      | `postgres`       |
-| `DB_PASSWORD`      | Database password                  | `password`       |
-| `DB_NAME`          | Database name                      | `reconciliation` |
-| `BATCH_SIZE`       | Number of rows processed per batch | `1000`           |
-| `NUMBER_OF_WORKER` | Parallel workers per job           | `2`              |
-| `INTERVAL_IN_SEC`  | Time between cron runs             | `10`             |
-| `PORT`             | HTTP server port                   | `8080`           |
-
----
-
-## 7. 🛠️ Prerequisites
+## 6. 🛠️ Prerequisites
 
 Ensure the following are installed:
 
@@ -172,7 +175,7 @@ Ensure the following are installed:
 
 ---
 
-## 8. 🚀 How to Run & Test
+## 7. 🚀 How to Run & Test
 
 ### 1. Start the stack
 
@@ -244,7 +247,7 @@ curl -X POST http://localhost:8080/process_reconciliation \
 
 ---
 
-## 9. Makefile Commands
+## 8. Makefile Commands
 
 Use the following commands to manage your environment:
 
