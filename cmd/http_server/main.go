@@ -1,4 +1,4 @@
-package controllers
+package main
 
 import (
 	"fmt"
@@ -6,13 +6,14 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/radhian/reconciliation_system/handler"
-	"github.com/radhian/reconciliation_system/infra/db/model"
-	"github.com/radhian/reconciliation_system/middlewares"
-	reconciliationUsecase "github.com/radhian/reconciliation_system/usecase/reconciliation"
 	"github.com/gorilla/mux"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgres
+	"github.com/radhian/reconciliation-system/handler"
+	"github.com/radhian/reconciliation-system/infra/db/dao"
+	"github.com/radhian/reconciliation-system/infra/db/model"
+	"github.com/radhian/reconciliation-system/middlewares"
+	reconciliationUsecase "github.com/radhian/reconciliation-system/usecase/reconciliation"
 )
 
 type App struct {
@@ -49,9 +50,10 @@ func RegisterReconciliationRoutes(router *mux.Router, h *handler.ReconciliationH
 
 func (a *App) initializeRoutes() {
 	a.Router.Use(middlewares.SetContentTypeMiddleware)
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB)
-	handler := handler.NewReconciliationHandler(reconciliationU)
-	RegisterReconciliationRoutes(r, handler)
+	reconciliationDao := dao.NewDaoMethod(a.DB)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, nil, 0)
+	handler := handler.NewReconciliationHandler(reconciliationUc)
+	RegisterReconciliationRoutes(a.Router, handler)
 }
 
 func (a *App) RunServer() {
@@ -63,4 +65,16 @@ func (a *App) RunServer() {
 
 	log.Printf("\nServer starting on port %v", port)
 	log.Fatal(http.ListenAndServe(":"+port, a.Router))
+}
+
+func main() {
+	app := App{}
+	app.Initialize(
+		os.Getenv("DB_HOST"),
+		os.Getenv("DB_PORT"),
+		os.Getenv("DB_USER"),
+		os.Getenv("DB_NAME"),
+		os.Getenv("DB_PASSWORD"))
+
+	app.RunServer()
 }

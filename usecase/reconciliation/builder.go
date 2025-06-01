@@ -1,28 +1,27 @@
 package reconciliation
 
 import (
-	"github.com/radhian/reconciliation_system/infra/db/model"
+	"context"
 
-	"github.com/jinzhu/gorm"
+	"github.com/radhian/reconciliation-system/infra/db/dao"
+	"github.com/radhian/reconciliation-system/infra/db/model"
+	"github.com/radhian/reconciliation-system/infra/locker"
 )
 
 type ReconciliationUsecase interface {
-	ProcessReconciliation(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error)
-	GetReconciliationResults() ([]model.ReconciliationProcessLog, error)
+	ProcessReconciliationInit(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error)
+	GetReconciliationResult(logID int64) (model.ReconciliationProcessLog, error)
+	ProcessReconciliationJob(ctx context.Context, logID int64) error
+	TryAcquireLock(ctx context.Context) (bool, int64, error)
+	UnlockProcess(ctx context.Context, logsID int64)
 }
 
 type reconciliationUsecase struct {
-	db *gorm.DB
+	dao       dao.DaoMethod
+	locker    *locker.Locker
+	batchSize int64
 }
 
-func NewReconciliationUsecase(db *gorm.DB) ReconciliationUsecase {
-	return &reconciliationUsecase{db: db}
-}
-
-func (u *reconciliationUsecase) GetReconciliationResults() ([]model.ReconciliationProcessLog, error) {
-	var logs []model.ReconciliationProcessLog
-	if err := u.db.Find(&logs).Error; err != nil {
-		return nil, err
-	}
-	return logs, nil
+func NewReconciliationUsecase(dao dao.DaoMethod, locker *locker.Locker, batchSize int64) ReconciliationUsecase {
+	return &reconciliationUsecase{dao: dao, locker: locker, batchSize: batchSize}
 }
