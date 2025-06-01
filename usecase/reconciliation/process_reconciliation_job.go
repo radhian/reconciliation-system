@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/labstack/gommon/log"
+	"github.com/radhian/reconciliation-system/entity"
 	"github.com/radhian/reconciliation-system/infra/db/model"
 	"github.com/radhian/reconciliation-system/utils"
 )
@@ -30,57 +31,40 @@ const (
 	DefaultBatchSize = 1000
 )
 
-type Transaction struct {
-	TrxID           string
-	Amount          float64
-	Type            string // DEBIT or CREDIT
-	TransactionTime time.Time
-}
-
-type BankStatement struct {
-	UniqueIdentifier string
-	Amount           float64
-	Date             time.Time
-}
-
 func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, logID int64) error {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Errorf("[ReconcileJob] Recovered from panic for LogID %d: %v", logID, r)
+			log.Errorf("[ReconcileJob] Panic recovered for LogID %d: %v", logID, r)
 		}
 	}()
 
-	log.Infof("[ReconcileJob] Starting reconciliation job for LogID: %d", logID)
+	log.Infof("[ReconcileJob] Starting job for LogID: %d", logID)
 
 	logEntry, err := u.fetchProcessLog(logID)
 	if err != nil {
-		log.Errorf("[ReconcileJob] Failed to fetch process log for LogID %d: %v", logID, err)
+		log.Errorf("[ReconcileJob] Could not fetch process log %d: %v", logID, err)
 		return err
 	}
-	log.Infof("[ReconcileJob] Fetched process log: %+v", logEntry)
 
 	assets, err := u.fetchProcessLogAssets(logID)
 	if err != nil {
-		log.Errorf("[ReconcileJob] Failed to fetch assets for LogID %d: %v", logID, err)
+		log.Errorf("[ReconcileJob] Could not fetch assets for LogID %d: %v", logID, err)
 		return err
 	}
-	log.Infof("[ReconcileJob] Fetched assets: %+v", assets)
 
 	systemFileUrl, err := findSystemFileUrl(assets)
 	if err != nil {
-		log.Errorf("[ReconcileJob] System file URL not found in assets: %v", err)
+		log.Errorf("[ReconcileJob] System file URL not found: %v", err)
 		return err
 	}
-	log.Infof("[ReconcileJob] Found system file URL: %s", systemFileUrl)
 
 	requestStartTime, requestEndTime, err := parseProcessMetadata(logEntry.ProcessInfo)
 	if err != nil {
-		log.Errorf("[ReconcileJob] Failed to parse metadata for LogID %d: %v", logID, err)
+		log.Errorf("[ReconcileJob] Metadata parse error for LogID %d: %v", logID, err)
 		return err
 	}
-	log.Infof("[ReconcileJob] Parsed metadata -> start: %s, end: %s", requestStartTime, requestEndTime)
 
-	log.Infof("[ReconcileJob] Reconciling data batch from row %d with batch size %d", logEntry.CurrentMainRow, DefaultBatchSize)
+	log.Infof("[ReconcileJob] Reconciling batch (start row: %d, size: %d)", logEntry.CurrentMainRow, DefaultBatchSize)
 
 	totalRows, processedRows, result := u.reconcileData(
 		systemFileUrl,
@@ -91,17 +75,16 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 		DefaultBatchSize,
 	)
 
-	log.Infof("[ReconcileJob] Reconciliation result for LogID %d -> totalRows: %d, processedRows: %d", logID, totalRows, processedRows)
-	log.Infof("[ReconcileJob] Reconciliation summary: %s", result)
+	log.Infof("[ReconcileJob] Batch done for LogID %d: total=%d, processed=%d", logID, totalRows, processedRows)
 
 	logEntry = u.updateProcessLogAfterBatch(logEntry, totalRows, processedRows, result, requestStartTime, requestEndTime)
 
 	if err := u.dao.UpdateReconciliationProcessLog(logEntry); err != nil {
-		log.Errorf("[ReconcileJob] Failed to update process log for LogID %d: %v", logID, err)
+		log.Errorf("[ReconcileJob] Failed to update log %d: %v", logID, err)
 		return fmt.Errorf("failed to update log: %w", err)
 	}
 
-	log.Infof("[ReconcileJob] Successfully finished processing batch for LogID %d", logID)
+	log.Infof("[ReconcileJob] Job completed for LogID %d", logID)
 	return nil
 }
 
@@ -166,63 +149,12 @@ func (u *reconciliationUsecase) updateProcessLogAfterBatch(
 	return logEntry
 }
 
-func (u *reconciliationUsecase) reconcileData(
-	systemFileUrl string,
-	assets []model.ReconciliationProcessLogAsset,
-	startTime time.Time,
-	endTime time.Time,
-	startIndex int,
-	batchSize int,
-) (totalRows int64, processedRows int64, result string) {
-	log.Infof("[Reconcile] Starting reconciliation for file: %s", systemFileUrl)
-
-	systemTxsAll, err := parseSystemTransactions(systemFileUrl, startTime, endTime)
-	if err != nil {
-		log.Infof("[Reconcile] Failed to parse system transactions: %v", err)
-		return 0, 0, "failed"
-	}
-	log.Infof("[Reconcile] Total system transactions in time range: %d", len(systemTxsAll))
-	totalSystemRows := len(systemTxsAll)
-
-	if startIndex < 0 || startIndex >= totalSystemRows {
-		log.Infof("[Reconcile] Start index %d out of bounds (total %d)", startIndex, totalSystemRows)
-		return int64(totalSystemRows), 0, "{}"
-	}
-
-	endIndex := startIndex + batchSize
-	if endIndex > totalSystemRows {
-		endIndex = totalSystemRows
-	}
-	systemTxsBatch := systemTxsAll[startIndex:endIndex]
-	log.Infof("[Reconcile] Processing transactions from index %d to %d", startIndex, endIndex)
-
-	bankTxs, bankBySource := u.parseBankAssets(assets, startTime, endTime)
-	log.Infof("[Reconcile] Total parsed bank transactions: %d", len(bankTxs))
-
-	sysMap := buildTransactionMap(systemTxsBatch)
-	bankMap := buildBankStatementMap(bankTxs)
-
-	matchedCount, unmatchedSys, unmatchedBank := compareTransactions(sysMap, bankMap)
-	log.Infof("[Reconcile] Matched: %d, Unmatched System: %d, Unmatched Bank: %d", matchedCount, len(unmatchedSys), len(unmatchedBank))
-
-	bankGroups := groupUnmatchedBanks(unmatchedBank, bankBySource)
-
-	resultSummary, err := buildResultSummary(len(systemTxsBatch), int(matchedCount), unmatchedSys, bankGroups)
-	if err != nil {
-		log.Infof("[Reconcile] Failed to build result summary: %v", err)
-		return int64(totalSystemRows), int64(len(systemTxsBatch)), "{}"
-	}
-
-	log.Infof("[Reconcile] Successfully built result summary")
-	return int64(totalSystemRows), int64(len(systemTxsBatch)), resultSummary
-}
-
 func (u *reconciliationUsecase) parseBankAssets(
 	assets []model.ReconciliationProcessLogAsset,
 	startTime, endTime time.Time,
-) ([]BankStatement, map[string][]BankStatement) {
-	bankTxs := make([]BankStatement, 0)
-	bankBySource := make(map[string][]BankStatement)
+) ([]entity.BankStatement, map[string][]entity.BankStatement) {
+	bankTxs := make([]entity.BankStatement, 0)
+	bankBySource := make(map[string][]entity.BankStatement)
 
 	for _, asset := range assets {
 		if asset.DataType != DataTypeBankStatement {
@@ -240,8 +172,8 @@ func (u *reconciliationUsecase) parseBankAssets(
 	return bankTxs, bankBySource
 }
 
-func buildTransactionMap(transactions []Transaction) map[string][]Transaction {
-	m := make(map[string][]Transaction)
+func buildTransactionMap(transactions []entity.Transaction) map[string][]entity.Transaction {
+	m := make(map[string][]entity.Transaction)
 	for _, trx := range transactions {
 		var typeCode string
 		if trx.Type == "CREDIT" {
@@ -258,8 +190,8 @@ func buildTransactionMap(transactions []Transaction) map[string][]Transaction {
 	return m
 }
 
-func buildBankStatementMap(bankTxs []BankStatement) map[string][]BankStatement {
-	m := make(map[string][]BankStatement)
+func buildBankStatementMap(bankTxs []entity.BankStatement) map[string][]entity.BankStatement {
+	m := make(map[string][]entity.BankStatement)
 	for _, b := range bankTxs {
 		var typeCode string
 		if b.Amount < 0 {
@@ -276,9 +208,9 @@ func buildBankStatementMap(bankTxs []BankStatement) map[string][]BankStatement {
 }
 
 func compareTransactions(
-	sysMap map[string][]Transaction,
-	bankMap map[string][]BankStatement,
-) (matchedCount int64, unmatchedSys []Transaction, unmatchedBank []BankStatement) {
+	sysMap map[string][]entity.Transaction,
+	bankMap map[string][]entity.BankStatement,
+) (matchedCount int64, unmatchedSys []entity.Transaction, unmatchedBank []entity.BankStatement) {
 	for key, txList := range sysMap {
 		bankList, found := bankMap[key]
 		if found {
@@ -305,10 +237,10 @@ func compareTransactions(
 }
 
 func groupUnmatchedBanks(
-	unmatchedBank []BankStatement,
-	bankBySource map[string][]BankStatement,
-) map[string][]BankStatement {
-	bankGroups := make(map[string][]BankStatement)
+	unmatchedBank []entity.BankStatement,
+	bankBySource map[string][]entity.BankStatement,
+) map[string][]entity.BankStatement {
+	bankGroups := make(map[string][]entity.BankStatement)
 
 	for _, b := range unmatchedBank {
 		for source, list := range bankBySource {
@@ -326,8 +258,8 @@ func groupUnmatchedBanks(
 func buildResultSummary(
 	total int,
 	matched int,
-	unmatchedSystem []Transaction,
-	unmatchedBank map[string][]BankStatement,
+	unmatchedSystem []entity.Transaction,
+	unmatchedBank map[string][]entity.BankStatement,
 ) (string, error) {
 	var totalDiscrepancy float64
 
@@ -344,12 +276,12 @@ func buildResultSummary(
 	}
 
 	summary := struct {
-		TotalProcessed     int                        `json:"total_processed"`
-		Matched            int                        `json:"matched"`
-		Unmatched          int                        `json:"unmatched"`
-		SystemUnmatched    []Transaction              `json:"system_unmatched"`
-		BankUnmatchedBySrc map[string][]BankStatement `json:"bank_unmatched_by_source"`
-		TotalDiscrepancy   float64                    `json:"total_discrepancy"`
+		TotalProcessed     int                               `json:"total_processed"`
+		Matched            int                               `json:"matched"`
+		Unmatched          int                               `json:"unmatched"`
+		SystemUnmatched    []entity.Transaction              `json:"system_unmatched"`
+		BankUnmatchedBySrc map[string][]entity.BankStatement `json:"bank_unmatched_by_source"`
+		TotalDiscrepancy   float64                           `json:"total_discrepancy"`
 	}{
 		TotalProcessed:     total,
 		Matched:            matched,
@@ -366,12 +298,62 @@ func buildResultSummary(
 	return string(resBytes), nil
 }
 
-func parseSystemTransactions(sourceFile string, startTime, endTime time.Time) ([]Transaction, error) {
+func (u *reconciliationUsecase) reconcileData(
+	systemFileUrl string,
+	assets []model.ReconciliationProcessLogAsset,
+	startTime time.Time,
+	endTime time.Time,
+	startIndex int,
+	batchSize int,
+) (totalRows int64, processedRows int64, result string) {
+	log.Infof("[Reconcile] Start file: %s", systemFileUrl)
+
+	systemTxsAll, err := parseSystemTransactions(systemFileUrl, startTime, endTime)
+	if err != nil {
+		log.Errorf("[Reconcile] System parse failed: %v", err)
+		return 0, 0, "failed"
+	}
+	totalSystemRows := len(systemTxsAll)
+	log.Infof("[Reconcile] Found %d system transactions in range", totalSystemRows)
+
+	if startIndex < 0 || startIndex >= totalSystemRows {
+		log.Warnf("[Reconcile] Invalid start index %d of %d", startIndex, totalSystemRows)
+		return int64(totalSystemRows), 0, "{}"
+	}
+
+	endIndex := startIndex + batchSize
+	if endIndex > totalSystemRows {
+		endIndex = totalSystemRows
+	}
+	systemTxsBatch := systemTxsAll[startIndex:endIndex]
+
+	bankTxs, bankBySource := u.parseBankAssets(assets, startTime, endTime)
+	log.Infof("[Reconcile] Parsed %d bank transactions", len(bankTxs))
+
+	sysMap := buildTransactionMap(systemTxsBatch)
+	bankMap := buildBankStatementMap(bankTxs)
+
+	matchedCount, unmatchedSys, unmatchedBank := compareTransactions(sysMap, bankMap)
+	log.Infof("[Reconcile] Matched: %d | Unmatched: System=%d, Bank=%d",
+		matchedCount, len(unmatchedSys), len(unmatchedBank))
+
+	bankGroups := groupUnmatchedBanks(unmatchedBank, bankBySource)
+
+	resultSummary, err := buildResultSummary(len(systemTxsBatch), int(matchedCount), unmatchedSys, bankGroups)
+	if err != nil {
+		log.Errorf("[Reconcile] Failed to build result: %v", err)
+		return int64(totalSystemRows), int64(len(systemTxsBatch)), "{}"
+	}
+
+	return int64(totalSystemRows), int64(len(systemTxsBatch)), resultSummary
+}
+
+func parseSystemTransactions(sourceFile string, startTime, endTime time.Time) ([]entity.Transaction, error) {
 	log.Infof("[SystemParser] Reading system file: %s", sourceFile)
 
 	file, err := os.Open(sourceFile)
 	if err != nil {
-		log.Infof("[SystemParser] Failed to open file: %v", err)
+		log.Errorf("[SystemParser] Failed to open file: %v", err)
 		return nil, fmt.Errorf("failed to open system file %s: %w", sourceFile, err)
 	}
 	defer file.Close()
@@ -379,50 +361,39 @@ func parseSystemTransactions(sourceFile string, startTime, endTime time.Time) ([
 	reader := csv.NewReader(file)
 	records, err := reader.ReadAll()
 	if err != nil {
-		log.Infof("[SystemParser] Failed to read CSV: %v", err)
+		log.Errorf("[SystemParser] Failed to read CSV: %v", err)
 		return nil, fmt.Errorf("failed to read CSV from system file %s: %w", sourceFile, err)
 	}
 
-	var transactions []Transaction
+	var transactions []entity.Transaction
+	skipped := 0
+
 	for i, record := range records {
-		if i == 0 {
+		if i == 0 || len(record) < 4 || strings.TrimSpace(record[0]) == "" {
+			skipped++
 			continue
 		}
 
-		trxID := strings.TrimSpace(record[0])
-		if trxID == "" || len(record) < 4 {
-			log.Infof("[SystemParser1] Skipping row %d due to parse error: %v", i, err)
+		amount, err1 := strconv.ParseFloat(strings.TrimSpace(record[1]), 64)
+		txTime, err2 := time.Parse(time.RFC3339, strings.TrimSpace(record[3]))
+		if err1 != nil || err2 != nil || txTime.Before(startTime) || txTime.After(endTime) {
+			skipped++
 			continue
 		}
 
-		amount, err := strconv.ParseFloat(strings.TrimSpace(record[1]), 64)
-		if err != nil {
-			log.Infof("[SystemParser2] Skipping row %d due to parse error: %v", i, err)
-			continue
-		}
-
-		txType := strings.ToUpper(strings.TrimSpace(record[2])) // Optional: normalize casing
-		txTimeRaw := strings.TrimSpace(record[3])
-		txTime, err := time.Parse(time.RFC3339, txTimeRaw)
-		log.Printf("txTime:%v startTime:%v, endTime:%v", txTime.String(), startTime.String(), endTime.String())
-		if err != nil || txTime.Before(startTime) || txTime.After(endTime) {
-			log.Infof("[SystemParser3] Skipping row %d due to parse error: %v", i, err)
-			continue
-		}
-
-		transactions = append(transactions, Transaction{
-			TrxID:           trxID,
+		transactions = append(transactions, entity.Transaction{
+			TrxID:           strings.TrimSpace(record[0]),
 			Amount:          amount,
-			Type:            txType,
+			Type:            strings.ToUpper(strings.TrimSpace(record[2])),
 			TransactionTime: txTime,
 		})
 	}
 
-	log.Infof("[SystemParser] Parsed %d valid system transactions", len(transactions))
+	log.Infof("[SystemParser] Parsed %d transactions, skipped %d invalid rows", len(transactions), skipped)
 	return transactions, nil
 }
 
-func parseBankStatements(sourceFile string, startTime, endTime time.Time) ([]BankStatement, error) {
+func parseBankStatements(sourceFile string, startTime, endTime time.Time) ([]entity.BankStatement, error) {
 	log.Infof("[BankParser] Reading bank statement file: %s", sourceFile)
 
 	file, err := os.Open(sourceFile)
@@ -443,7 +414,7 @@ func parseBankStatements(sourceFile string, startTime, endTime time.Time) ([]Ban
 	startDate := time.Date(startTime.Year(), startTime.Month(), startTime.Day(), 0, 0, 0, 0, startTime.Location())
 	endDate := time.Date(endTime.Year(), endTime.Month(), endTime.Day(), 0, 0, 0, 0, endTime.Location())
 
-	var statements []BankStatement
+	var statements []entity.BankStatement
 	for i, record := range records {
 		if i == 0 {
 			continue // skip header
@@ -480,7 +451,7 @@ func parseBankStatements(sourceFile string, startTime, endTime time.Time) ([]Ban
 			continue
 		}
 
-		statements = append(statements, BankStatement{
+		statements = append(statements, entity.BankStatement{
 			UniqueIdentifier: record[0],
 			Amount:           amount,
 			Date:             dateOnly,
