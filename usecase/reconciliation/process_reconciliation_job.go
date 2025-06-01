@@ -329,18 +329,34 @@ func buildResultSummary(
 	unmatchedSystem []Transaction,
 	unmatchedBank map[string][]BankStatement,
 ) (string, error) {
+	var totalDiscrepancy float64
+
+	// Sum discrepancies from system unmatched
+	for _, trx := range unmatchedSystem {
+		totalDiscrepancy += trx.Amount
+	}
+
+	// Sum discrepancies from bank unmatched
+	for _, group := range unmatchedBank {
+		for _, b := range group {
+			totalDiscrepancy += math.Abs(b.Amount)
+		}
+	}
+
 	summary := struct {
 		TotalProcessed     int                        `json:"total_processed"`
 		Matched            int                        `json:"matched"`
 		Unmatched          int                        `json:"unmatched"`
 		SystemUnmatched    []Transaction              `json:"system_unmatched"`
 		BankUnmatchedBySrc map[string][]BankStatement `json:"bank_unmatched_by_source"`
+		TotalDiscrepancy   float64                    `json:"total_discrepancy"`
 	}{
 		TotalProcessed:     total,
 		Matched:            matched,
 		Unmatched:          total - matched,
 		SystemUnmatched:    unmatchedSystem,
 		BankUnmatchedBySrc: unmatchedBank,
+		TotalDiscrepancy:   totalDiscrepancy,
 	}
 
 	resBytes, err := json.Marshal(summary)
