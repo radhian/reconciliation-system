@@ -17,10 +17,11 @@ type ReconciliationUsecase interface {
 }
 
 type reconciliationUsecase struct {
-	dao    dao.DaoMethod
-	locker *locker.Locker
+	dao       dao.DaoMethod
+	locker    *locker.Locker
+	batchSize int64
 }
 
-func NewReconciliationUsecase(dao dao.DaoMethod, locker *locker.Locker) ReconciliationUsecase {
-	return &reconciliationUsecase{dao: dao, locker: locker}
+func NewReconciliationUsecase(dao dao.DaoMethod, locker *locker.Locker, batchSize int64) ReconciliationUsecase {
+	return &reconciliationUsecase{dao: dao, locker: locker, batchSize: batchSize}
 }

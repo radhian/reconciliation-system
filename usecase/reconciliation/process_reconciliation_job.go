@@ -52,7 +52,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 		return err
 	}
 
-	log.Infof("[ReconcileJob] Reconciling batch (start row: %d, size: %d)", logEntry.CurrentMainRow, consts.DefaultBatchSize)
+	log.Infof("[ReconcileJob] Reconciling batch (start row: %d, size: %d)", logEntry.CurrentMainRow, u.batchSize)
 
 	totalRows, processedRows, result := u.reconcileData(
 		systemFileUrl,
@@ -60,7 +60,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 		requestStartTime,
 		requestEndTime,
 		int(logEntry.CurrentMainRow),
-		consts.DefaultBatchSize,
+		int(u.batchSize),
 	)
 
 	log.Infof("[ReconcileJob] Batch done for LogID %d: total=%d, processed=%d", logID, totalRows, processedRows)

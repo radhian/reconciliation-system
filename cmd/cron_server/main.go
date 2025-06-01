@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgres
+	"github.com/radhian/reconciliation-system/consts"
 	"github.com/radhian/reconciliation-system/handler"
 	"github.com/radhian/reconciliation-system/infra/db/dao"
 	"github.com/radhian/reconciliation-system/infra/locker"
@@ -35,16 +37,57 @@ func (cfg CronWorkerConfig) startReconcileExecutorWorker(h *handler.Reconciliati
 	}
 }
 
+type AppConfig struct {
+	BatchSize     int
+	WorkerNumber  int
+	IntervalInSec int
+}
+
+func NewAppConfig() (*AppConfig, error) {
+	batchSizeStr := os.Getenv("BATCH_SIZE")
+	workerStr := os.Getenv("NUMBER_OF_WORKER")
+	intervalStr := os.Getenv("INTERVAL_IN_SEC")
+
+	batchSize, err := strconv.Atoi(batchSizeStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid BATCH_SIZE: %v", err)
+	}
+
+	numWorker, err := strconv.Atoi(workerStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid NUMBER_OF_WORKER: %v", err)
+	}
+
+	intervalSec, err := strconv.Atoi(intervalStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid INTERVAL_IN_SEC: %v", err)
+	}
+
+	cfg := &AppConfig{
+		BatchSize:     batchSize,
+		WorkerNumber:  numWorker,
+		IntervalInSec: intervalSec,
+	}
+
+	return cfg, nil
+}
+
 type App struct {
 	DB     *gorm.DB
 	Locker *locker.Locker
+	Config *AppConfig
 }
 
 func (a *App) startCronWorker(cfg CronWorkerConfig) {
 	var wg sync.WaitGroup
 
+	batchSize := int64(consts.DefaultBatchSize)
+	if a.Config != nil {
+		batchSize = int64(a.Config.BatchSize)
+	}
+
 	reconciliationDao := dao.NewDaoMethod(a.DB)
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, a.Locker)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, a.Locker, batchSize)
 	h := handler.NewReconciliationHandler(reconciliationUc)
 
 	for i := 0; i < cfg.Workers; i++ {
@@ -71,12 +114,24 @@ func (a *App) Initialize(DbHost, DbPort, DbUser, DbName, DbPassword string) {
 	}
 
 	a.Locker = locker.New()
+
+	a.Config, err = NewAppConfig()
+	if err != nil {
+		fmt.Printf("\n Cannot get config from .env, use default, err %s", err.Error())
+	}
 }
 
 func (a *App) RunServer() {
+	workerNumber := consts.DefaultWorkerNumber
+	intervalInSec := consts.DefaultIntervalInSec
+	if a.Config != nil {
+		workerNumber = a.Config.WorkerNumber
+		intervalInSec = a.Config.IntervalInSec
+	}
+
 	a.startCronWorker(CronWorkerConfig{
-		Workers:  1,
-		Interval: 2 * time.Second,
+		Workers:  workerNumber,
+		Interval: time.Duration(intervalInSec) * time.Second,
 	})
 }
 

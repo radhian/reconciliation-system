@@ -13,6 +13,8 @@ const (
 	DataTypeSystemFile    = 1
 	DataTypeBankStatement = 2
 
-	// Default batch size for processing
-	DefaultBatchSize = 1000
+	// Default config
+	DefaultBatchSize     = 1000
+	DefaultWorkerNumber  = 1
+	DefaultIntervalInSec = 2
 )

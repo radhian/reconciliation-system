@@ -51,7 +51,7 @@ func RegisterReconciliationRoutes(router *mux.Router, h *handler.ReconciliationH
 func (a *App) initializeRoutes() {
 	a.Router.Use(middlewares.SetContentTypeMiddleware)
 	reconciliationDao := dao.NewDaoMethod(a.DB)
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, nil)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, nil, 0)
 	handler := handler.NewReconciliationHandler(reconciliationUc)
 	RegisterReconciliationRoutes(a.Router, handler)
 }
