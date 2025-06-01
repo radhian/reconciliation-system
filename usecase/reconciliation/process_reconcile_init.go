@@ -60,12 +60,17 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 		return nil, fmt.Errorf("failed to create reconciliation process log: %v", err)
 	}
 
-	for _, url := range append([]string{mainFileURL}, refFileURLs...) {
+	for i, url := range append([]string{mainFileURL}, refFileURLs...) {
+		dataType := int64(1) // 1 = main, 2 = reference
+		if i > 0 {
+			dataType = 2
+		}
+
 		asset := &model.ReconciliationProcessLogAsset{
 			ReconciliationProcessLogID: log.ID,
 			FileName:                   filepath.Base(url),
 			FileUrl:                    url,
-			DataType:                   1, // 1 = main, 2 = reference
+			DataType:                   dataType,
 			CreateTime:                 timeNowUnix,
 			CreateBy:                   operator,
 		}

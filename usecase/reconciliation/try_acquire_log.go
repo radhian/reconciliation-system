@@ -15,14 +15,6 @@ func (u *reconciliationUsecase) TryAcquireLock(ctx context.Context) (bool, int64
 		return false, 0, err
 	}
 
-	/*TODO:Uncomment for testing
-	processLogList = []model.ReconciliationProcessLog{
-		{
-			ID: 1,
-		},
-	}
-	*/
-
 	for _, processLog := range processLogList {
 		if u.locker.IsProcessing(processLog.ID) {
 			continue

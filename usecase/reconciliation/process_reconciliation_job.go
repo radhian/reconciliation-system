@@ -73,7 +73,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 
 	u.updateProcessLogAfterBatch(logEntry, totalRows, processedRows, result, requestStartTime, requestEndTime)
 
-	if err := u.dao.UpdateReconciliationProcessLog(logEntry).Error; err != nil {
+	if err := u.dao.UpdateReconciliationProcessLog(logEntry); err != nil {
 		return fmt.Errorf("failed to update log: %w", err)
 	}
 
