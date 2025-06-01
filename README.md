@@ -14,6 +14,7 @@ A **highly scalable system** designed to automate the **matching and validation 
 * [6. Prerequisites](#6-prerequisites)
 * [7. How to Run & Test](#7-how-to-run--test)
 * [8. Makefile Commands](#8-makefile-commands)
+* [9. Limitations & Future Improvements](#9-limitations--future-improvements)
 
 ---
 
@@ -263,3 +264,15 @@ make run       # Start the application
 make down      # Tear everything down
 make restart   # Full rebuild and restart
 ```
+
+## 9. Limitations & Future Improvements
+#### 1. Local File Storage for CSV Uploads
+CSV files are currently uploaded and stored in the local file system.
+*  ⚠️ This limits scalability and portability, especially in containerized or distributed deployments.
+Future Improvement: Integrate with cloud object storage services such as AWS S3, Google Cloud Storage, etc to support remote, scalable, and durable file uploads.
+
+#### 2. Static Configuration via .env File
+Application settings (e.g., database config, batch size, worker count) are loaded from a .env file at startup.
+
+* ⚠️ Any configuration change requires a full application restart to take effect.
+Future Improvement: Implement dynamic or hot-reloadable configuration using tools like Viper, Consul, or environment watchers.
