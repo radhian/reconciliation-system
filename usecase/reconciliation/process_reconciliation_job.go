@@ -14,6 +14,7 @@ import (
 
 	"github.com/labstack/gommon/log"
 	"github.com/radhian/reconciliation-system/infra/db/model"
+	"github.com/radhian/reconciliation-system/utils"
 )
 
 const (
@@ -37,7 +38,6 @@ type Transaction struct {
 }
 
 type BankStatement struct {
-	BankName         string
 	UniqueIdentifier string
 	Amount           float64
 	Date             time.Time
@@ -240,8 +240,8 @@ func (u *reconciliationUsecase) parseBankAssets(
 	return bankTxs, bankBySource
 }
 
-func buildTransactionMap(transactions []Transaction) map[string]Transaction {
-	m := make(map[string]Transaction)
+func buildTransactionMap(transactions []Transaction) map[string][]Transaction {
+	m := make(map[string][]Transaction)
 	for _, trx := range transactions {
 		var typeCode string
 		if trx.Type == "CREDIT" {
@@ -253,13 +253,13 @@ func buildTransactionMap(transactions []Transaction) map[string]Transaction {
 		}
 
 		key := fmt.Sprintf("%s|%.2f", typeCode, trx.Amount)
-		m[key] = trx
+		m[key] = append(m[key], trx)
 	}
 	return m
 }
 
-func buildBankStatementMap(bankTxs []BankStatement) map[string]BankStatement {
-	m := make(map[string]BankStatement)
+func buildBankStatementMap(bankTxs []BankStatement) map[string][]BankStatement {
+	m := make(map[string][]BankStatement)
 	for _, b := range bankTxs {
 		var typeCode string
 		if b.Amount < 0 {
@@ -270,27 +270,35 @@ func buildBankStatementMap(bankTxs []BankStatement) map[string]BankStatement {
 
 		amount := math.Abs(b.Amount)
 		key := fmt.Sprintf("%s|%.2f", typeCode, amount)
-		m[key] = b
+		m[key] = append(m[key], b)
 	}
 	return m
 }
 
 func compareTransactions(
-	sysMap map[string]Transaction,
-	bankMap map[string]BankStatement,
+	sysMap map[string][]Transaction,
+	bankMap map[string][]BankStatement,
 ) (matchedCount int64, unmatchedSys []Transaction, unmatchedBank []BankStatement) {
-	for key, sysTx := range sysMap {
-		log.Printf("123key:%s bankMap:%v", key, bankMap)
-		if _, found := bankMap[key]; found {
-			matchedCount++
-			delete(bankMap, key) // Optional: so we don't re-count it later
+	for key, txList := range sysMap {
+		bankList, found := bankMap[key]
+		if found {
+			matchCount := utils.Min(len(txList), len(bankList))
+			matchedCount += int64(matchCount)
+
+			if len(txList) > matchCount {
+				unmatchedSys = append(unmatchedSys, txList[matchCount:]...)
+			}
+			if len(bankList) > matchCount {
+				unmatchedBank = append(unmatchedBank, bankList[matchCount:]...)
+			}
+			delete(bankMap, key)
 		} else {
-			unmatchedSys = append(unmatchedSys, sysTx)
+			unmatchedSys = append(unmatchedSys, txList...)
 		}
 	}
 
-	for _, bankTx := range bankMap {
-		unmatchedBank = append(unmatchedBank, bankTx)
+	for _, leftover := range bankMap {
+		unmatchedBank = append(unmatchedBank, leftover...)
 	}
 
 	return matchedCount, unmatchedSys, unmatchedBank
@@ -457,7 +465,6 @@ func parseBankStatements(sourceFile string, startTime, endTime time.Time) ([]Ban
 		}
 
 		statements = append(statements, BankStatement{
-			BankName:         "Unknown", // optional: adjust as needed
 			UniqueIdentifier: record[0],
 			Amount:           amount,
 			Date:             dateOnly,
