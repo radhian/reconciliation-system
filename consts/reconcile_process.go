@@ -17,4 +17,6 @@ const (
 	DefaultBatchSize     = 1000
 	DefaultWorkerNumber  = 1
 	DefaultIntervalInSec = 2
+
+	NoProcessHandled = "no process handled"
 )

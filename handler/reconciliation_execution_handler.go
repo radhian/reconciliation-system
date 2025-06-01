@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"errors"
+
+	"github.com/radhian/reconciliation-system/consts"
 )
 
 func (h *ReconciliationHandler) ReconciliationExecution(ctx context.Context) error {
@@ -12,7 +14,7 @@ func (h *ReconciliationHandler) ReconciliationExecution(ctx context.Context) err
 	}
 
 	if !acquired {
-		return errors.New("no process handled")
+		return errors.New(consts.NoProcessHandled)
 	}
 
 	defer h.Usecase.UnlockProcess(ctx, logID)

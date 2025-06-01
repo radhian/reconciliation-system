@@ -28,7 +28,11 @@ func (cfg CronWorkerConfig) startReconcileExecutorWorker(h *handler.Reconciliati
 		ctx := context.Background()
 		err := h.ReconciliationExecution(ctx)
 		if err != nil {
-			log.Printf("[Worker %d] error: %s", workerID, err.Error())
+			if err.Error() == consts.NoProcessHandled {
+				log.Printf("[Worker %d] %s", workerID, err.Error())
+			} else {
+				log.Printf("[Worker %d] error: %s", workerID, err.Error())
+			}
 		} else {
 			log.Printf("[Worker %d] success", workerID)
 		}
