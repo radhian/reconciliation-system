@@ -14,22 +14,36 @@ import (
 )
 
 func (h *ReconciliationHandler) ProcessReconciliation(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	var req entity.ProcessReconciliationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(APIResponse{
+			Status:  "error",
+			Message: "Invalid request body",
+		})
 		return
 	}
 
 	startTime, endTime, err := parseAndConvertDates(req.StartDate, req.EndDate)
 	if err != nil {
 		log.Println("Invalid date input:", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(APIResponse{
+			Status:  "error",
+			Message: err.Error(),
+		})
 		return
 	}
 
 	if err := validateProcessReconciliationRequest(req); err != nil {
 		log.Println("Invalid input:", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(APIResponse{
+			Status:  "error",
+			Message: err.Error(),
+		})
 		return
 	}
 
@@ -42,11 +56,19 @@ func (h *ReconciliationHandler) ProcessReconciliation(w http.ResponseWriter, r *
 	)
 	if err != nil {
 		log.Printf("failed to load CSV: %v", err)
-		http.Error(w, "Failed to process reconciliation", http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(APIResponse{
+			Status:  "error",
+			Message: "Failed to process reconciliation",
+		})
 		return
 	}
 
-	json.NewEncoder(w).Encode(res)
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(APIResponse{
+		Status: "success",
+		Data:   res,
+	})
 }
 
 func parseAndConvertDates(startDateStr, endDateStr string) (int64, int64, error) {
