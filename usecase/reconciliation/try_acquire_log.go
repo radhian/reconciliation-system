@@ -10,12 +10,7 @@ import (
 func (u *reconciliationUsecase) TryAcquireLock(ctx context.Context) (bool, int64, error) {
 	var processLogList []model.ReconciliationProcessLog
 
-	err := u.db.
-		Select("id").
-		Where("status IN (?)", []int{1, 2}).
-		Order("create_time ASC").
-		Find(&processLogList).Error
-
+	processLogList, err := u.dao.GetReconciliationProcessLogByStatusList([]int{1, 2})
 	if err != nil {
 		return false, 0, err
 	}

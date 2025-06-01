@@ -11,6 +11,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgres
 	"github.com/radhian/reconciliation-system/handler"
+	"github.com/radhian/reconciliation-system/infra/db/dao"
 	"github.com/radhian/reconciliation-system/infra/locker"
 	reconciliationUsecase "github.com/radhian/reconciliation-system/usecase/reconciliation"
 )
@@ -42,7 +43,8 @@ type App struct {
 func (a *App) startCronWorker(cfg CronWorkerConfig) {
 	var wg sync.WaitGroup
 
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB, a.Locker)
+	reconciliationDao := dao.NewDaoMethod(a.DB)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, a.Locker)
 	h := handler.NewReconciliationHandler(reconciliationUc)
 
 	for i := 0; i < cfg.Workers; i++ {

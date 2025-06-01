@@ -10,6 +10,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres" //postgres
 	"github.com/radhian/reconciliation-system/handler"
+	"github.com/radhian/reconciliation-system/infra/db/dao"
 	"github.com/radhian/reconciliation-system/infra/db/model"
 	"github.com/radhian/reconciliation-system/middlewares"
 	reconciliationUsecase "github.com/radhian/reconciliation-system/usecase/reconciliation"
@@ -49,7 +50,8 @@ func RegisterReconciliationRoutes(router *mux.Router, h *handler.ReconciliationH
 
 func (a *App) initializeRoutes() {
 	a.Router.Use(middlewares.SetContentTypeMiddleware)
-	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(a.DB, nil)
+	reconciliationDao := dao.NewDaoMethod(a.DB)
+	reconciliationUc := reconciliationUsecase.NewReconciliationUsecase(reconciliationDao, nil)
 	handler := handler.NewReconciliationHandler(reconciliationUc)
 	RegisterReconciliationRoutes(a.Router, handler)
 }

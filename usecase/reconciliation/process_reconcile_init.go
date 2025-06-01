@@ -56,7 +56,7 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 		UpdateBy:           operator,
 	}
 
-	if err := u.db.Create(log).Error; err != nil {
+	if err := u.dao.CreateReconciliationProcessLog(*log); err != nil {
 		return nil, fmt.Errorf("failed to create reconciliation process log: %v", err)
 	}
 
@@ -69,7 +69,7 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 			CreateTime:                 timeNowUnix,
 			CreateBy:                   operator,
 		}
-		if err := u.db.Create(&asset).Error; err != nil {
+		if err := u.dao.CreateReconciliationProcessLogAsset(asset); err != nil {
 			return nil, fmt.Errorf("failed to save file asset: %v", err)
 		}
 	}

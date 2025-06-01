@@ -3,10 +3,9 @@ package reconciliation
 import (
 	"context"
 
+	"github.com/radhian/reconciliation-system/infra/db/dao"
 	"github.com/radhian/reconciliation-system/infra/db/model"
 	"github.com/radhian/reconciliation-system/infra/locker"
-
-	"github.com/jinzhu/gorm"
 )
 
 type ReconciliationUsecase interface {
@@ -18,10 +17,10 @@ type ReconciliationUsecase interface {
 }
 
 type reconciliationUsecase struct {
-	db     *gorm.DB
+	dao    dao.DaoMethod
 	locker *locker.Locker
 }
 
-func NewReconciliationUsecase(db *gorm.DB, locker *locker.Locker) ReconciliationUsecase {
-	return &reconciliationUsecase{db: db, locker: locker}
+func NewReconciliationUsecase(dao dao.DaoMethod, locker *locker.Locker) ReconciliationUsecase {
+	return &reconciliationUsecase{dao: dao, locker: locker}
 }

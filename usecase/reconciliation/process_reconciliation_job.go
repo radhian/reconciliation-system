@@ -73,7 +73,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 
 	u.updateProcessLogAfterBatch(logEntry, totalRows, processedRows, result, requestStartTime, requestEndTime)
 
-	if err := u.db.Save(&logEntry).Error; err != nil {
+	if err := u.dao.UpdateReconciliationProcessLog(logEntry).Error; err != nil {
 		return fmt.Errorf("failed to update log: %w", err)
 	}
 
@@ -82,7 +82,8 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 
 func (u *reconciliationUsecase) fetchProcessLog(logID int64) (model.ReconciliationProcessLog, error) {
 	var logEntry model.ReconciliationProcessLog
-	if err := u.db.First(&logEntry, logID).Error; err != nil {
+	logEntry, err := u.dao.GetReconciliationProcessLogByID(uint(logID))
+	if err != nil {
 		return logEntry, fmt.Errorf("log not found: %w", err)
 	}
 	return logEntry, nil
@@ -90,8 +91,9 @@ func (u *reconciliationUsecase) fetchProcessLog(logID int64) (model.Reconciliati
 
 func (u *reconciliationUsecase) fetchProcessLogAssets(logID int64) ([]model.ReconciliationProcessLogAsset, error) {
 	var assets []model.ReconciliationProcessLogAsset
-	if err := u.db.Where("reconciliation_process_log_id = ?", logID).Find(&assets).Error; err != nil {
-		return nil, err
+	assets, err := u.dao.GetReconciliationLogAssetsByLogID(uint(logID))
+	if err != nil {
+		return nil, fmt.Errorf("log not found: %w", err)
 	}
 	return assets, nil
 }
