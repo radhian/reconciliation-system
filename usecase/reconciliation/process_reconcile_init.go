@@ -7,13 +7,10 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/radhian/reconciliation-system/consts"
+	"github.com/radhian/reconciliation-system/entity"
 	"github.com/radhian/reconciliation-system/infra/db/model"
 )
-
-type ProcessMetadata struct {
-	StartTime int64 `json:"start_time"`
-	EndTime   int64 `json:"end_time"`
-}
 
 func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string, referenceCSVs []string, startTime, endTime int64, operator string) (*model.ReconciliationProcessLog, error) {
 	timeNowUnix := time.Now().Unix()
@@ -33,7 +30,7 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 	}
 
 	// Create process info
-	processInfo := ProcessMetadata{
+	processInfo := entity.ProcessMetadata{
 		StartTime: startTime,
 		EndTime:   endTime,
 	}
@@ -44,11 +41,11 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 	}
 
 	log := &model.ReconciliationProcessLog{
-		ReconciliationType: 1, // set proper type if applicable
+		ReconciliationType: consts.ReconciliationTypeBankTransaction,
 		TotalMainRow:       0, // will be updated after processing CSV
 		CurrentMainRow:     0,
 		ProcessInfo:        string(processInfoJSON),
-		Status:             1, // init = 1, running = 2, finish = 3, cancel = 4
+		Status:             consts.StatusInit,
 		Result:             "",
 		CreateTime:         timeNowUnix,
 		CreateBy:           operator,
@@ -61,9 +58,9 @@ func (u *reconciliationUsecase) ProcessReconciliationInit(transactionCSV string,
 	}
 
 	for i, url := range append([]string{mainFileURL}, refFileURLs...) {
-		dataType := int64(1) // 1 = main, 2 = reference
+		dataType := int64(consts.DataTypeSystemFile)
 		if i > 0 {
-			dataType = 2
+			dataType = consts.DataTypeBankStatement
 		}
 
 		asset := &model.ReconciliationProcessLogAsset{

@@ -13,22 +13,10 @@ import (
 	"time"
 
 	"github.com/labstack/gommon/log"
+	"github.com/radhian/reconciliation-system/consts"
 	"github.com/radhian/reconciliation-system/entity"
 	"github.com/radhian/reconciliation-system/infra/db/model"
 	"github.com/radhian/reconciliation-system/utils"
-)
-
-const (
-	// Reconciliation status codes
-	StatusRunning  = 2
-	StatusFinished = 3
-
-	// DataType constants
-	DataTypeSystemFile    = 1
-	DataTypeBankStatement = 2
-
-	// Default batch size for processing
-	DefaultBatchSize = 1000
 )
 
 func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, logID int64) error {
@@ -64,7 +52,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 		return err
 	}
 
-	log.Infof("[ReconcileJob] Reconciling batch (start row: %d, size: %d)", logEntry.CurrentMainRow, DefaultBatchSize)
+	log.Infof("[ReconcileJob] Reconciling batch (start row: %d, size: %d)", logEntry.CurrentMainRow, consts.DefaultBatchSize)
 
 	totalRows, processedRows, result := u.reconcileData(
 		systemFileUrl,
@@ -72,7 +60,7 @@ func (u *reconciliationUsecase) ProcessReconciliationJob(ctx context.Context, lo
 		requestStartTime,
 		requestEndTime,
 		int(logEntry.CurrentMainRow),
-		DefaultBatchSize,
+		consts.DefaultBatchSize,
 	)
 
 	log.Infof("[ReconcileJob] Batch done for LogID %d: total=%d, processed=%d", logID, totalRows, processedRows)
@@ -108,7 +96,7 @@ func (u *reconciliationUsecase) fetchProcessLogAssets(logID int64) ([]model.Reco
 
 func findSystemFileUrl(assets []model.ReconciliationProcessLogAsset) (string, error) {
 	for _, asset := range assets {
-		if asset.DataType == DataTypeSystemFile {
+		if asset.DataType == consts.DataTypeSystemFile {
 			return asset.FileUrl, nil
 		}
 	}
@@ -116,7 +104,7 @@ func findSystemFileUrl(assets []model.ReconciliationProcessLogAsset) (string, er
 }
 
 func parseProcessMetadata(processInfo string) (time.Time, time.Time, error) {
-	var metadata ProcessMetadata
+	var metadata entity.ProcessMetadata
 	if err := json.Unmarshal([]byte(processInfo), &metadata); err != nil {
 		return time.Time{}, time.Time{}, fmt.Errorf("failed to parse process metadata: %w", err)
 	}
@@ -138,9 +126,9 @@ func (u *reconciliationUsecase) updateProcessLogAfterBatch(
 	logEntry.Result = result
 
 	if logEntry.CurrentMainRow >= totalRows {
-		logEntry.Status = StatusFinished
+		logEntry.Status = consts.StatusFinished
 	} else {
-		logEntry.Status = StatusRunning
+		logEntry.Status = consts.StatusRunning
 	}
 
 	logEntry.UpdateTime = time.Now().Unix()
@@ -157,7 +145,7 @@ func (u *reconciliationUsecase) parseBankAssets(
 	bankBySource := make(map[string][]entity.BankStatement)
 
 	for _, asset := range assets {
-		if asset.DataType != DataTypeBankStatement {
+		if asset.DataType != consts.DataTypeBankStatement {
 			continue
 		}
 		txs, err := parseBankStatements(asset.FileUrl, startTime, endTime)
