@@ -113,7 +113,7 @@ Within each group key, transactions from both sides are matched based on the min
   
 #### Reconcile execution (CRON)
 1. Periodically checks for pending reconciliation processes with status INIT or RUNNING.
-2. Uses an in-memory cache or distributed lock to ensure the process isn't already being executed by another worker.
+2. Uses an in-memory cache as a lock to ensure the process isn't already being executed by another worker.
 3. If the process is not locked, it executes the reconciliation logic using the associated CSV file links.
 4. After processing, updates the process log with the results and sets the final status (e.g., RUNNING, FINISH).
 
@@ -133,7 +133,7 @@ Within each group key, transactions from both sides are matched based on the min
 
 * Runs at configurable intervals
 * Spawns **N workers** (parallel processing)
-* Uses a **distributed lock** to prevent concurrent runs
+* Usesn **in-memory cache as a lock** to prevent concurrent runs
 
 ### PostgreSQL Database
 
